@@ -1,16 +1,14 @@
 import {
+  ASSERT,
   EngineObject,
-  Vector2,
-  frame,
-  mainCanvasSize,
   rand,
-  randInCircle
+  randInCircle,
 } from "littlejsengine";
 import Boid, { BoidOptions, BoidType } from "./Boid.ts";
 import { Weights, WeightsEnum } from "./types.ts";
 import Game from "../game.ts";
 import Player from "../Player.ts";
-import { SpriteFrame } from "../spriteUtils.ts";
+import { SpriteAnimation } from "../spriteUtils.ts";
 import { InfiniteSpatialGrid } from "./InfiniteSpatialGrid.ts";
 
 export default class BoidManager {
@@ -30,43 +28,62 @@ export default class BoidManager {
   addTimeoutId: NodeJS.Timeout;
   canAddBoids: boolean = true;
 
-  birdSpriteAnim: SpriteFrame[];
+  birdSpriteAnim: SpriteAnimation;
+  droneSpriteAnim: SpriteAnimation;
 
-  spatialGrid: InfiniteSpatialGrid
+  spatialGrid: InfiniteSpatialGrid;
 
-  constructor(game: Game, numberOfBoids: number, player: Player) {
+  boidAnimations: Record<BoidType, SpriteAnimation>;
+
+  constructor(game: Game, boidCount: number, player: Player) {
     this.spatialGrid = new InfiniteSpatialGrid(10);
-    this.birdSpriteAnim = game.spriteAtlas.bird;
-    this.spawnBoids(numberOfBoids, player as EngineObject);
+
+    this.boidAnimations = {
+      [BoidType.Friendly]: game.spriteAtlas.bird,
+      [BoidType.Enemy]: game.spriteAtlas.drone
+    }
+
+    this.spawnBoids(
+      boidCount,
+      { leader: player, type: BoidType.Friendly });
   }
 
-  spawnBoid(options?: BoidOptions) {
-    const leader = options?.leader;
-    const minRadius = 0.1;// * this.boids.length || 0.15;
-    const maxRadius = 5.0;//minRadius + ((this.boids.length % 10 || 1) * this.targetVariation);
-    const spawnPosition = (leader ? leader.pos : mainCanvasSize).add(randInCircle(maxRadius, minRadius));
+  spawnBoid(options: BoidOptions) {
+    const {
+      leader,
+      type,
+      spawnPos
+    } = options;
+    ASSERT(!!spawnPos || !!leader, 'A boid needs a spawnPos or a leader!');
+
+    const minRadius = 0.1;
+    const maxRadius = 5.0;
+
+    const spriteAnim = this.boidAnimations[type as BoidType];
+
+    const spawnCenter = spawnPos ?? (leader as EngineObject)?.pos;
+    const spawnPosition = spawnCenter.add(randInCircle(maxRadius, minRadius));
     this.boids.push(new Boid(
-      spawnPosition.x,
-      spawnPosition.y,
       {
+        spawnPos: spawnPosition,
         seekTargetOffset: randInCircle(maxRadius, minRadius),
         seekOuterRadius: this.baseSeekRadius + rand(1.0 + this.seekRadiusVariation, 1.0 - this.seekRadiusVariation),
-        spriteAnim: this.birdSpriteAnim,
-        // if leader is a player, this boid is friendly
-        type: leader instanceof Player ? BoidType.Friendly : BoidType.Enemy,
+        spriteAnim,
+        type,
         ...options
       }
     ));
   }
 
-  spawnBoids(numberOfBoids: number, leader?: EngineObject) {
+  spawnBoids(
+    boidCount: number, options: BoidOptions) {
     if (!this.canAddBoids) {
       return;
     }
-    console.log('spawning boids: ', numberOfBoids);
+    console.log('spawning boids: ', boidCount);
 
-    for (let i = 0; i < numberOfBoids; i++) {
-      this.spawnBoid({ leader });
+    for (let i = 0; i < boidCount; i++) {
+      this.spawnBoid(options);
     }
     this.canAddBoids = false;
 
@@ -76,12 +93,9 @@ export default class BoidManager {
   }
 
   updateBoids() {
-    // Clear and repopulate the grid
-    // update every 5 frames
-    // if (frame % 5 === 0) {
-      this.spatialGrid.clear();
-      this.boids.forEach(boid => this.spatialGrid.addBoid(boid));
-    // }
+
+    this.spatialGrid.clear();
+    this.boids.forEach(boid => this.spatialGrid.addBoid(boid));
 
     // Update each boid using neighbors from the grid
     this.boids.forEach(boid => {
@@ -99,14 +113,7 @@ export default class BoidManager {
   }
 
   update() {
-    // for (let boid of this.boids) {
-    //   boid.flock(
-    //     this.boids,
-    //     this.weights,
-    //   );
-    //   boid.update();
-    //   boid.render();
-    // }
+
     this.updateBoids();
   }
 

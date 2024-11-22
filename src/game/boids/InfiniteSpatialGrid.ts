@@ -1,4 +1,4 @@
-import { cameraScale, Color, drawLine, drawText, glContext, mainContext, screenToWorld, vec2, Vector2 } from "littlejsengine";
+import { Color, drawText, vec2, Vector2 } from "littlejsengine";
 import Boid from "./Boid";
 
 export class InfiniteSpatialGrid {
@@ -66,9 +66,6 @@ export class InfiniteSpatialGrid {
       const [x, y] = key.split(',').map(Number);
       const worldPos = vec2(x * this.cellSize + this.cellSize * 0.5, y * this.cellSize + this.cellSize * 0.5);
       drawText(`X: ${x}, Y: ${y}\nBoids: ${boids.length}`, worldPos, 1, white, 0, white, "center");
-      drawLine(worldPos, worldPos.add(vec2(this.cellSize, 0)), 1, white);
-      drawLine(worldPos, worldPos.add(vec2(0, this.cellSize)), 1, white);
-
     });
   }
 }

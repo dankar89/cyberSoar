@@ -1,19 +1,16 @@
-import { Color, drawTile, rand, tile, TileInfo, time, vec2, Vector2 } from "littlejsengine";
-import { SpriteFrame } from "./spriteUtils";
+import { rand, time } from "littlejsengine";
+import { SpriteAnimation } from "./spriteUtils";
+import AnimatedSprite from "./AnimatedSprite.ts";
 
 const GLIDE_FRAME = 4;
 
-export default class BirdSprite {
+export default class BirdSprite extends AnimatedSprite {
   isGliding: boolean = false;
   glideTime: number = 2; // seconds
   glideStartTime: number = 0;
-  spriteAnim: SpriteFrame[];
-  tileInfo: TileInfo;
 
-  constructor(spriteAnim: SpriteFrame[]) {
-    this.spriteAnim = spriteAnim;
-    const { x, y, w, h } = this.spriteAnim[0];
-    this.tileInfo = tile(vec2(x, y), vec2(w, h));
+  constructor(spriteAnim: SpriteAnimation, animationSpeed: number = 30.0, animationTimeOffset: number = 0) {
+    super(spriteAnim, animationSpeed, animationTimeOffset);
   }
 
   startGlide() {
@@ -32,8 +29,8 @@ export default class BirdSprite {
     }
   }
 
-  handleGlide(startGlide: boolean) {
-    if (!this.isGliding && startGlide) {
+  handleGlide(shouldStartGlide: boolean) {
+    if (!this.isGliding && shouldStartGlide) {
       this.startGlide();
     } else {
       this.updateGlide();
@@ -42,24 +39,12 @@ export default class BirdSprite {
     return this.isGliding;
   }
 
-  getSpriteFrame(animationTimeOffset: number = 0): TileInfo {
-    let animSpeed = 30.0;
-
-    const t = time + animationTimeOffset;
-    let frameOffset = Math.floor(t * animSpeed) % this.spriteAnim.length;
-
-    const isGliding = this.handleGlide(frameOffset === GLIDE_FRAME && rand() < 0.07);
-
+  // Override the updateFrameOffset method to handle gliding
+  updateFrameOffset() {
+    super.updateFrameOffset();
+    const isGliding = this.handleGlide(this.frameOffset === GLIDE_FRAME && rand() < 0.07);
     if (isGliding) {
-      frameOffset = GLIDE_FRAME;
+      this.frameOffset = GLIDE_FRAME;
     }
-
-    const { x, y } = this.spriteAnim[frameOffset];
-    return this.tileInfo.offset(vec2(x, y));
-  }
-
-  render(position: Vector2, size: Vector2, color: Color, angle: number, animationTimeOffset: number = 0) {
-    const spriteFrame = this.getSpriteFrame(animationTimeOffset);
-    drawTile(position, size, spriteFrame, color, angle, false, new Color(0, 0, 0, 0), true);
   }
 }

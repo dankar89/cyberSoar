@@ -186,6 +186,11 @@
             <key type="filename">../../src/game/data/bird_animation/bird_7.png</key>
             <key type="filename">../../src/game/data/bird_animation/bird_8.png</key>
             <key type="filename">../../src/game/data/bird_animation/bird_9.png</key>
+            <key type="filename">../../src/game/data/bird_animation/drone_1.png</key>
+            <key type="filename">../../src/game/data/bird_animation/drone_2.png</key>
+            <key type="filename">../../src/game/data/bird_animation/drone_3.png</key>
+            <key type="filename">../../src/game/data/bird_animation/drone_4.png</key>
+            <key type="filename">../../src/game/data/bird_animation/drone_5.png</key>
             <struct type="IndividualSpriteSettings">
                 <key>pivotPoint</key>
                 <point_f>0.5,0.5</point_f>
@@ -220,6 +225,11 @@
                     <filename>../../src/game/data/bird_animation/bird_7.png</filename>
                     <filename>../../src/game/data/bird_animation/bird_8.png</filename>
                     <filename>../../src/game/data/bird_animation/bird_9.png</filename>
+                    <filename>../../src/game/data/bird_animation/drone_1.png</filename>
+                    <filename>../../src/game/data/bird_animation/drone_2.png</filename>
+                    <filename>../../src/game/data/bird_animation/drone_3.png</filename>
+                    <filename>../../src/game/data/bird_animation/drone_4.png</filename>
+                    <filename>../../src/game/data/bird_animation/drone_5.png</filename>
                 </array>
             </struct>
         </map>

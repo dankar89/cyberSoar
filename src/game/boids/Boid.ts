@@ -8,15 +8,18 @@ import {
   vec2,
 } from "littlejsengine";
 import { Weights } from "./types";
+import { SpriteAnimation } from "../spriteUtils";
+import AnimatedSprite from "../AnimatedSprite.ts";
 import BirdSprite from "../BirdSprite.ts";
-import { SpriteFrame } from "../spriteUtils";
 
 export type BoidOptions = {
   seekTargetOffset?: Vector2; // Each boid should have a unique target offset
   seekOuterRadius?: number;
   leader?: EngineObject,
-  spriteAnim?: SpriteFrame[],
-  type?: BoidType;
+  spriteAnim?: SpriteAnimation,
+  type?: BoidType,
+  spawnPos?: Vector2,
+  size?: Vector2
 };
 
 const friendlyColor = new Color(5 / 255.0, 125 / 255.0, 80 / 255.0, 1);
@@ -44,20 +47,25 @@ export default class Boid {
   options: BoidOptions = {
     seekTargetOffset: vec2(0, 0),
     seekOuterRadius: 0,
-    spriteAnim: [],
+    spriteAnim: { frames: [], offset: 0 },
     type: BoidType.Friendly,
+    size: vec2(1)
   };
   animationTimeOffset: number = Math.random() * 10.0;
 
-  birdSprite: BirdSprite;
-  boidSize: Vector2 = vec2(1, 1).scale(rand(0.8, 1.2));
+  sprite: AnimatedSprite;
+  boidSize: Vector2 = vec2(1, 1);
 
-  constructor(x: number, y: number, options: BoidOptions) {
-    if (!options?.spriteAnim?.length) {
-      throw new Error('Boid must have a sprite animation');
+  constructor(options: BoidOptions) {
+    if (!options?.spriteAnim?.frames.length) {
+      throw new Error('Boid must have a valid sprite animation');
     }
 
-    this.position = vec2(x, y);
+    if (!options.spawnPos) {
+      throw new Error('Boid must have a valid spawnPos');
+    }
+
+    this.position = options.spawnPos;
     this.velocity = vec2(0, 0);
     this.acceleration = vec2(0, 0);
     this.maxSpeed = 12; // Example max speed
@@ -68,9 +76,15 @@ export default class Boid {
       ...options,
     };
 
-    this.color = this.options.type === BoidType.Friendly ? friendlyColor : enemyColor;
+    this.boidSize = (options.size || this.boidSize).scale(rand(0.8, 1.2));
 
-    this.birdSprite = new BirdSprite(this.options?.spriteAnim as SpriteFrame[]);
+    this.color = this.options.type === BoidType.Friendly ? friendlyColor : enemyColor;
+    if (options.type === BoidType.Friendly) {
+      this.sprite = new BirdSprite(this.options?.spriteAnim as SpriteAnimation);
+    } else {
+      this.sprite = new AnimatedSprite(this.options?.spriteAnim as SpriteAnimation);
+    }
+    this.sprite.animationTimeOffset = this.animationTimeOffset;
   }
 
   // Update position and velocity with deltaTime to maintain consistent movement
@@ -198,6 +212,6 @@ export default class Boid {
     // Use the velocity length to determine the size of the boid
     const scaleFactor = 1.25 - ((this.velocity.length() / this.maxSpeed) * 0.5);
     const size = this.boidSize.scale(scaleFactor);
-    this.birdSprite.render(this.position, size, this.color, this.velocity.angle(), this.animationTimeOffset);
+    this.sprite.render(this.position, size, this.color, this.velocity.angle());
   }
 }

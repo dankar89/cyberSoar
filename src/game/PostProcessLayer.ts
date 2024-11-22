@@ -1,4 +1,4 @@
-import { mainContext, glContext, glFlush, glCanvas, mainCanvas, glCreateTexture } from 'littlejsengine';
+import { mainContext, glContext, glFlush, glCanvas, mainCanvas, glCreateTexture, time, cameraPos } from 'littlejsengine';
 import { createShaderProgram } from './shaderUtils.ts';
 
 export class PostProcessLayer {
@@ -45,6 +45,8 @@ export class PostProcessLayer {
     const resolutionLocation = glContext.getUniformLocation(this.shaderProgram, 'u_resolution');
     const bloomThresholdLocation = glContext.getUniformLocation(this.shaderProgram, 'u_bloomThreshold');
     const bloomIntensityLocation = glContext.getUniformLocation(this.shaderProgram, 'u_bloomIntensity');
+    const timeLocation = glContext.getUniformLocation(this.shaderProgram, 'u_time');
+    const cameraPosLocation = glContext.getUniformLocation(this.shaderProgram, 'u_cameraPos');
 
     if (textureLocation) {
       glContext.uniform1i(textureLocation, 0);
@@ -60,6 +62,14 @@ export class PostProcessLayer {
 
     if (bloomIntensityLocation) {
       glContext.uniform1f(bloomIntensityLocation, this.bloomIntensity);
+    }
+
+    if (timeLocation) {
+      glContext.uniform1f(timeLocation, time);
+    }
+
+    if (cameraPosLocation) {
+      glContext.uniform2f(cameraPosLocation, cameraPos.x, cameraPos.y);
     }
 
     // Define the vertex positions for a full-canvas quad
