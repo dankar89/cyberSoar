@@ -5,8 +5,6 @@ uniform vec2 u_resolution;
 uniform vec2 u_cameraPos;
 uniform float u_time;
 
-//#define BLACK_AND_WHITE
-
 // const vec3 cameraDir = normalize(vec3(-2.0, -1.0, -6.0));
 const vec3 cameraDir = normalize(vec3(-0.0, -1.0, -6.0));
 const float cameraDist = 9.0;
@@ -280,47 +278,5 @@ void main() {
   // color += addLight(vec3(-eye.xy, eye.z), vec3(-ray.xy, ray.z), res.x, time, lightHeight - 0.2);
   // color += addLight(vec3(-eye.yx, eye.z), vec3(-ray.yx, ray.z), res.x, time, lightHeight);
 
-#ifdef BLACK_AND_WHITE
-  float c = clamp(dot(vec3(0.4, 0.3, 0.4), color), 0.0, 1.0);
-  c = 1.0 - pow(1.0 - pow(c, 2.0), 4.0);
-  color = vec3(c);
-#endif
-
   gl_FragColor = vec4(color, 1.0);
 }
-
-// void main() {
-//   // Use the camera position directly for grid offset
-//   vec2 center = -u_cameraPos;
-
-//   // Redefine forward and right vectors to align with grid movement
-//   vec3 forward = vec3(0.0, 0.0, -1.0);  // Forward along Z-axis
-//   vec3 right = vec3(1.0, 0.0, 0.0);    // Right along X-axis
-//   vec3 up = vec3(0.0, 1.0, 0.0);       // Up along Y-axis
-
-//   // Define the eye position based on camera position
-//   vec3 eye = vec3(center, 0.0) - cameraDist * forward;
-
-//   // Compute ray direction
-//   vec2 xy = 2.0 * gl_FragCoord.xy - u_resolution.xy;
-//   vec3 ray = normalize(xy.x * right + xy.y * up + zoom * forward * u_resolution.y);
-
-//   // Cast the ray and calculate the grid
-//   vec4 res = castRay(eye, ray, center);
-//   vec3 p = eye + res.x * ray;
-
-//   vec2 block = floor(p.xy);
-//   vec3 color = window(p.z - res.y, p.xy, block);
-
-//   // Apply fog to blend distant buildings
-//   float fog = exp(-fogDensity * max(res.x - fogOffset, 0.0));
-//   color = mix(fogColor, color, fog);
-
-// #ifdef BLACK_AND_WHITE
-//   float c = clamp(dot(vec3(0.4, 0.3, 0.4), color), 0.0, 1.0);
-//   c = 1.0 - pow(1.0 - pow(c, 2.0), 4.0);
-//   color = vec3(c);
-// #endif
-
-//   gl_FragColor = vec4(color, 1.0);
-// }
