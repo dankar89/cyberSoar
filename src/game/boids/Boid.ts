@@ -155,7 +155,7 @@ export default class Boid {
   }
 
   // Seek method to follow a target with a more dynamic response
-  seek(target: Vector2, outerRadius: number = 10, seekCoefficient): Vector2 {
+  seek(target: Vector2, outerRadius: number = 10, seekCoefficient: number): Vector2 {
     const targetWithOffset = target
       .add(this.options.seekTargetOffset || vec2(0, 0))
       .add(vec2(Math.sin(time) * (2 * (this.options.seekTargetOffset?.x || 1)), Math.cos(time) * (2 * (this.options.seekTargetOffset?.y || 1)))); // Add some dynamic offset
@@ -199,7 +199,7 @@ export default class Boid {
     let attractionForce = vec2(0, 0);
     if (this.options.leader) {
       const outerRadius = Math.min(15, 5 + ((boids.length - 1) * 0.05));
-      attractionForce = this.seek(this.options.leader.pos, outerRadius, weights.attraction); // 100 is the desired distance to leader
+      attractionForce = this.seek(this.options.leader.pos, outerRadius, weights.attraction);
     }
     // Apply each force with weights
     this.applyForce(cohesionForce.multiply(vec2(weights.cohesion, weights.cohesion)));

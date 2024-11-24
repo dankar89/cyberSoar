@@ -27,6 +27,11 @@ const vec3 lightColorB = vec3(0.8, 0.6, 0.4);
 const vec3 signColorA = vec3(0.0, 0.0, 1.5);
 const vec3 signColorB = vec3(3.0, 3.0, 3.0);
 
+const vec3 dustColor = vec3(0.3, 0.3, 0.9);
+const float dustDensity = 0.4;
+const float dustSpeed = 0.2;
+const int NUM_DUST_LAYERS = 3;
+
 const float tau = 6.283185;
 
 float hash1(float p) {
@@ -74,7 +79,7 @@ float noise(vec2 p) {
 
 vec4 castRay(vec3 eye, vec3 ray, vec2 center) {
   vec2 block = floor(eye.xy);
-  vec3 ri = 1.0 / ray;
+  vec3 ri = 1.0 / (ray + vec3(0.000001));
   vec3 rs = sign(ray);
   vec3 side = 0.5 + 0.5 * rs;
   vec2 ris = ri.xy * rs.xy;
@@ -112,7 +117,7 @@ vec4 castRay(vec3 eye, vec3 ray, vec2 center) {
       float maxFace = dim.x - dim.y;
 
       vec3 p = eye + maxT * ray;
-      dim += step(lo, p) * step(p, hi);
+      dim += step(lo - 0.001, p) * step(p, hi + 0.001);
 
       if (dim.x * dim.y * dim.z > 0.5) {
         dist = maxT;
@@ -133,7 +138,7 @@ vec4 castRay(vec3 eye, vec3 ray, vec2 center) {
       float maxFace = dim.x - dim.y;
 
       vec3 p = eye + maxT * ray;
-      dim += step(lo, p) * step(p, hi);
+      dim += step(lo - 0.001, p) * step(p, hi + 0.001);
 
       if (dim.x * dim.y * dim.z > 0.5 && maxT < dist) {
         dist = maxT;
@@ -247,10 +252,50 @@ vec3 addSign(vec3 color, vec3 pos, float side, vec2 id) {
   return mix(color, outlineColor, flash * outline);
 }
 
-void main() {
-  // vec2 center = -speed * cameraDir.xy;
-  vec2 center = -u_cameraPos * speed;
+vec3 getDust(vec2 uv, float depth) {
+  vec3 dust = vec3(0.0);
 
+  for(int i = 0; i < NUM_DUST_LAYERS; i++) {
+    float layerDepth = float(i) / float(NUM_DUST_LAYERS);
+    float scale = mix(0.5, 2.0, layerDepth);
+    float speed = dustSpeed * (layerDepth + 0.5);
+
+    // Calculate parallax offset based on camera position and layer depth
+    float parallaxStrength = mix(0.2, 1.0, layerDepth); // deeper layers move more
+    vec2 cameraOffset = u_cameraPos * speed * parallaxStrength;
+
+    // Combine camera movement with time-based movement
+    vec2 offset = cameraOffset + vec2(
+        u_time * speed * 0.1,
+        u_time * speed * 0.2 + sin(u_time * 0.1) * 0.5
+    );
+
+    // Add some swirling based on camera movement
+    float swirl = sin(length(cameraOffset) * 0.1 + u_time * 0.2) * 0.5;
+    offset += vec2(cos(swirl), sin(swirl)) * layerDepth * 0.3;
+
+    // Generate noise for dust particles with camera-affected coordinates
+    vec2 coord = (uv + offset * 0.1) * scale;
+    float n = noise(coord * 60.0);
+
+    // Add some variation to the dust
+    float sparkle = pow(n, 20.0) * 2.0;
+    float baseNoise = pow(n, 3.0) * 0.3;
+
+    // Fade dust based on depth and layer
+    float fade = exp(-depth * dustDensity) * (1.0 - layerDepth);
+
+    // Add slight color variation based on camera movement
+    vec3 layerDustColor = dustColor + vec3(0.05) * sin(length(cameraOffset) * 0.1);
+
+    dust += layerDustColor * (baseNoise + sparkle) * fade;
+  }
+
+  return dust;
+}
+
+void main() {
+  vec2 center = -u_cameraPos * speed;
   vec3 eye = vec3(center, 0.0) - cameraDist * cameraDir;
 
   vec3 forward = normalize(cameraDir);
@@ -271,12 +316,10 @@ void main() {
   float fog = exp(-fogDensity * max(res.x - fogOffset, 0.0));
   color = mix(fogColor, color, fog);
 
-
-  // float time = lightSpeed * u_time;
-  // color += addLight(eye.xyz, ray.xyz, res.x, time, lightHeight - 0.6);
-  // color += addLight(eye.yxz, ray.yxz, res.x, time, lightHeight - 0.4);
-  // color += addLight(vec3(-eye.xy, eye.z), vec3(-ray.xy, ray.z), res.x, time, lightHeight - 0.2);
-  // color += addLight(vec3(-eye.yx, eye.z), vec3(-ray.yx, ray.z), res.x, time, lightHeight);
+  // Add dust effect
+  vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+  vec3 dust = getDust(uv, res.x);
+  color += dust;
 
   gl_FragColor = vec4(color, 1.0);
 }

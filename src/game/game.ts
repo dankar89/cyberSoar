@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import { Color, drawRect, engineInit, mainCanvasSize, screenToWorld, vec2, setCameraPos, mouseWasPressed, mousePos } from "littlejsengine";
+import { Color, drawRect, engineInit, mainCanvasSize, screenToWorld, vec2, setCameraPos, mouseWasPressed, mousePos, playAudioFile, keyWasPressed, SoundWave, toggleFullscreen } from "littlejsengine";
 import spritesData from "./data/sprites.json";
 import BoidManager from "./boids/BoidManager.ts";
 import { createSpriteAtlas, SpriteAtlas } from "./spriteUtils.ts";
@@ -21,6 +21,9 @@ export default class Game extends EventEmitter {
 
   initialized: boolean = false;
 
+  #musicVolume: number;
+  music: SoundWave;
+
   constructor() {
     super();
     const imageSources = ['sprites/sprites.png'];
@@ -33,6 +36,20 @@ export default class Game extends EventEmitter {
       this.gameRenderPost,
       imageSources
     );
+
+    this.#musicVolume = 1.0;
+    this.music = playAudioFile('audio/bird_song.wav', this.#musicVolume, true);
+  }
+
+  handleInput = () => {
+    if (keyWasPressed('KeyM')) {
+      this.#musicVolume = this.#musicVolume > 0 ? 0 : 1.0;
+      this.music.setVolume(this.#musicVolume);
+    }
+
+    if (keyWasPressed('KeyF')) {
+      toggleFullscreen();
+    }
   }
 
   gameInit = async () => {
@@ -73,10 +90,13 @@ export default class Game extends EventEmitter {
     if (mouseWasPressed(1)) {
       this.boidManager.spawnBoids(1, {
         leader: this.player,
-        type: BoidType.Friendly
+        type: BoidType.Friendly,
+        size: vec2(1.5)
       });
     }
     // END OF TEST CODE
+
+    this.handleInput();
 
     this.boidManager.update();
     // Add other game update logic here if needed
