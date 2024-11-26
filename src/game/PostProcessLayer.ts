@@ -7,7 +7,7 @@ export class PostProcessLayer {
   bloomThreshold: number = 0.9;
   bloomIntensity: number = 1.0;
 
-  glPostTexture: WebGLTexture;
+  glPostTexture!: WebGLTexture;
 
   public loaded: Promise<void>;
 

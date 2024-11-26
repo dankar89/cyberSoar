@@ -7,15 +7,18 @@ import { BackgroundLayer } from "./background/BackgroundLayer.ts";
 import Player from "./Player.ts";
 import { PostProcessLayer } from "./PostProcessLayer.ts";
 import { BoidType } from "./boids/Boid.ts";
+import { DroneManager } from "./DroneManager.ts";
 
 export default class Game extends EventEmitter {
-  public boidManager: BoidManager;
-  public spriteAtlas: SpriteAtlas;
+  public boidManager!: BoidManager;
+  public spriteAtlas!: SpriteAtlas;
 
-  public backgroundLayer: BackgroundLayer;
-  public postProcessLayer: PostProcessLayer;
+  public backgroundLayer!: BackgroundLayer;
+  public postProcessLayer!: PostProcessLayer;
 
-  player: Player;
+  droneManager!: DroneManager;
+
+  player!: Player;
 
   postProcessEnabled: boolean = true;
 
@@ -60,17 +63,17 @@ export default class Game extends EventEmitter {
     this.postProcessLayer = new PostProcessLayer();
 
     this.player = new Player(screenToWorld(mainCanvasSize.scale(0.5)), this);
-
     this.boidManager = new BoidManager(this, 0, this.player);
+    this.droneManager = new DroneManager(this);
 
-    Promise.all([
+    await Promise.all([
       this.backgroundLayer.loaded,
       this.postProcessLayer.loaded,
-    ]).then(() => {
-      console.log("Game Initialized", this);
-      this.initialized = true;
-      this.emit('loaded');
-    });
+    ]);
+
+    console.log("Game Initialized", this);
+    this.initialized = true;
+    this.emit('loaded');
   };
 
   gameUpdate = () => {
@@ -78,26 +81,8 @@ export default class Game extends EventEmitter {
       return;
     }
 
-    // TEST CODE!!
-    if (mouseWasPressed(2)) {
-      this.boidManager.spawnBoids(
-        1, {
-        spawnPos: mousePos,
-        type: BoidType.Enemy,
-        size: vec2(2.5, 2.5)
-      });
-    }
-    if (mouseWasPressed(1)) {
-      this.boidManager.spawnBoids(1, {
-        leader: this.player,
-        type: BoidType.Friendly,
-        size: vec2(1.5)
-      });
-    }
-    // END OF TEST CODE
-
     this.handleInput();
-
+    this.droneManager.update();
     this.boidManager.update();
     // Add other game update logic here if needed
 

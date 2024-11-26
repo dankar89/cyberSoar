@@ -1,7 +1,7 @@
 // src/App.tsx
 import React from "react";
-import { GameProvider } from "./components/GameContext.tsx";
-import Debug from "./components/Debug.tsx";
+import { GameProvider } from "./components/GameContext";
+import Debug from "./components/Debug";
 
 function App() {
   return (

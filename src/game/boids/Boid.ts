@@ -10,7 +10,7 @@ import {
 import { Weights } from "./types";
 import { SpriteAnimation } from "../spriteUtils";
 import AnimatedSprite from "../AnimatedSprite.ts";
-import BirdSprite from "../BirdSprite.ts";
+import { Poolable } from "../ObjectPool.ts";
 
 export type BoidOptions = {
   seekTargetOffset?: Vector2; // Each boid should have a unique target offset
@@ -36,14 +36,14 @@ export enum BoidType {
   Enemy
 }
 
-export default class Boid {
-  position: Vector2;
-  velocity: Vector2;
-  acceleration: Vector2;
-  maxSpeed: number;
-  minSpeed: number;
-  maxForce: number;
-  color: Color;
+export default abstract class Boid implements Poolable {
+  position: Vector2 = vec2();
+  velocity: Vector2 = vec2();
+  acceleration: Vector2 = vec2();
+  maxSpeed: number = 12;
+  minSpeed: number = 7;
+  maxForce: number = 2;
+  color: Color = new Color(1, 1, 1, 1);
   options: BoidOptions = {
     seekTargetOffset: vec2(0, 0),
     seekOuterRadius: 0,
@@ -53,10 +53,28 @@ export default class Boid {
   };
   animationTimeOffset: number = Math.random() * 10.0;
 
-  sprite: AnimatedSprite;
+  sprite?: AnimatedSprite;
   boidSize: Vector2 = vec2(1, 1);
 
-  constructor(options: BoidOptions) {
+  active: boolean = false;
+
+  protected wanderAngle: number = Math.random() * Math.PI * 2; // For idle behaviors
+  private forcesApplied: boolean = false;
+
+  activate(): void {
+    this.active = true;
+  }
+
+  deactivate(): void {
+    this.active = false;
+    // Reset state
+    this.position = vec2(0, 0);
+    this.velocity = vec2(0, 0);
+    this.acceleration = vec2(0, 0);
+    // this.sprite?.destroy();
+  }
+
+  init(options: BoidOptions) {
     if (!options?.spriteAnim?.frames.length) {
       throw new Error('Boid must have a valid sprite animation');
     }
@@ -66,36 +84,38 @@ export default class Boid {
     }
 
     this.position = options.spawnPos;
-    this.velocity = vec2(0, 0);
-    this.acceleration = vec2(0, 0);
-    this.maxSpeed = 12; // Example max speed
-    this.minSpeed = 7;
-    this.maxForce = 2; // Example max force
     this.options = {
       ...this.options,
       ...options,
     };
 
     this.boidSize = (options.size || this.boidSize).scale(rand(0.8, 1.2));
-
     this.color = this.options.type === BoidType.Friendly ? friendlyColor : enemyColor;
-    if (options.type === BoidType.Friendly) {
-      this.sprite = new BirdSprite(this.options?.spriteAnim as SpriteAnimation);
-    } else {
-      this.sprite = new AnimatedSprite(this.options?.spriteAnim as SpriteAnimation);
-    }
-    this.sprite.animationTimeOffset = this.animationTimeOffset;
+
+    this.initSprite(options.spriteAnim as SpriteAnimation);
   }
 
-  // Update position and velocity with deltaTime to maintain consistent movement
+  protected abstract initSprite(spriteAnim: SpriteAnimation): void;
+
+  // Each boid type implements its own idle behavior
+  protected abstract idle(): Vector2;
+
   update() {
+    if (!this.forcesApplied) {
+      // No forces were applied this frame, use idle behavior
+      this.applyForce(this.idle());
+    }
+
     this.velocity = this.velocity.add(this.acceleration).clampLength(this.maxSpeed);
-    this.position = this.position.add(this.velocity.multiply(vec2(dt, dt))); // Apply deltaTime to position only
-    this.acceleration = vec2(0, 0); // Reset acceleration
+    this.position = this.position.add(this.velocity.multiply(vec2(dt, dt)));
+    this.acceleration = vec2(0, 0);
+    this.forcesApplied = false; // Reset for next frame
   }
 
-  // Apply a force to the boid without scaling down by deltaTime for acceleration responsiveness
   applyForce(force: Vector2) {
+    if (force.length() > 0) {
+      this.forcesApplied = true;
+    }
     this.acceleration = this.acceleration.add(force);
   }
 
@@ -156,38 +176,42 @@ export default class Boid {
 
   // Seek method to follow a target with a more dynamic response
   seek(target: Vector2, outerRadius: number = 10, seekCoefficient: number): Vector2 {
-    const targetWithOffset = target
-      .add(this.options.seekTargetOffset || vec2(0, 0))
-      .add(vec2(Math.sin(time) * (2 * (this.options.seekTargetOffset?.x || 1)), Math.cos(time) * (2 * (this.options.seekTargetOffset?.y || 1)))); // Add some dynamic offset
+    // Add a subtle dynamic offset for natural movement
+    const dynamicOffset = vec2(
+      Math.sin(time) * (this.options.seekTargetOffset?.x || 0.5),
+      Math.cos(time) * (this.options.seekTargetOffset?.y || 0.5)
+    );
+
+    const targetWithOffset = target.add(dynamicOffset);
     const distanceToTarget = this.position.distance(targetWithOffset);
-    const innerRadius = outerRadius * 0.3;
+    const innerRadius = outerRadius * 0.4;
 
-    // Stop seeking if within the comfort zone
+    // Simple distance-based force scaling
+    let strength;
     if (distanceToTarget < innerRadius) {
-      return vec2(0, 0);
+      // Smoothly reduce force as we get closer to target
+      strength = 0.2 + (distanceToTarget / innerRadius) * 0.3;
+    } else if (distanceToTarget > outerRadius) {
+      // Full force when too far
+      strength = 1;
+    } else {
+      // Gradual increase between inner and outer radius
+      strength = 0.5 + ((distanceToTarget - innerRadius) / (outerRadius - innerRadius)) * 0.5;
     }
 
-    // Calculate the diminishing attraction within the outer radius
-    const strength = Math.min((distanceToTarget - innerRadius) / (outerRadius - innerRadius), 1);
-    const adjustedMaxSpeed = Math.min(this.maxSpeed * strength, this.minSpeed); // Adjust speed dynamically based on distance
-
-    // Calculate desired velocity and steering force
-    let desired = targetWithOffset
+    // Calculate desired velocity
+    const desired = targetWithOffset
       .subtract(this.position)
-      .add(vec2(Math.sin(time) * (4 * (this.options.seekTargetOffset?.x || 1)), Math.cos(time) * (4 * (this.options.seekTargetOffset?.y || 1)))) // Add some dynamic offset
       .normalize()
-      .multiply(vec2(adjustedMaxSpeed, adjustedMaxSpeed));
-    let steering = desired.subtract(this.velocity).clampLength(this.maxForce);
+      .multiply(vec2(this.maxSpeed, this.maxSpeed));
 
-    return steering.multiply(vec2(seekCoefficient, seekCoefficient));
-  }
+    // Apply strength to steering rather than speed
+    const steering = desired
+      .subtract(this.velocity)
+      .clampLength(this.maxForce)
+      .multiply(vec2(strength * seekCoefficient, strength * seekCoefficient));
 
-
-  // Limit the magnitude of velocity to maxSpeed (frame-rate independent with dt)
-  limitVelocity() {
-    if (this.velocity.length() > this.maxSpeed) {
-      this.velocity = this.velocity.normalize().multiply(vec2(this.maxSpeed, this.maxSpeed));
-    }
+    return steering;
   }
 
   flock(boids: Boid[], weights: Weights) {
@@ -201,17 +225,18 @@ export default class Boid {
       const outerRadius = Math.min(15, 5 + ((boids.length - 1) * 0.05));
       attractionForce = this.seek(this.options.leader.pos, outerRadius, weights.attraction);
     }
+
     // Apply each force with weights
-    this.applyForce(cohesionForce.multiply(vec2(weights.cohesion, weights.cohesion)));
-    this.applyForce(alignmentForce.multiply(vec2(weights.alignment, weights.alignment)));
-    this.applyForce(separationForce.multiply(vec2(weights.separation, weights.separation)));
-    this.applyForce(attractionForce); // Follow the leader
+    this.applyForce(cohesionForce);
+    this.applyForce(alignmentForce);
+    this.applyForce(separationForce);
+    this.applyForce(attractionForce);
   }
 
   render() {
     // Use the velocity length to determine the size of the boid
-    const scaleFactor = 1.25 - ((this.velocity.length() / this.maxSpeed) * 0.5);
-    const size = this.boidSize.scale(scaleFactor);
-    this.sprite.render(this.position, size, this.color, this.velocity.angle());
+    // const scaleFactor = 1.25 - ((this.velocity.length() / this.maxSpeed) * 0.5);
+    const size = this.boidSize;//.scale(scaleFactor);
+    this.sprite?.render(this.position, size, this.color, this.velocity.angle());
   }
 }
